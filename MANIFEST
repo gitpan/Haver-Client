@@ -1,9 +1,5 @@
-bin/haver-tk-2.pl
-bin/haver-tk.pl
 Build.PL
-Changes
 COPYING
-foo.pl
 lib/Haver/Client.pm
 lib/Haver/Client/Commands.pm
 lib/Haver/Client/UserList.pm

@@ -1,8 +1,8 @@
 \.old$
-CVS
-\.bak$
-.cvsignore
-\.~
+\.bak
+store
 blib
 _build
 ^Build$
+^\.#
+\.svn

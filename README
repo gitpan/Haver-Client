@@ -19,16 +19,18 @@ Also, writing the server, the clients,
 devising a protocol that is simple, is
 terribly fun stuff.
 
-This Bryan Donlan's perl client library for Haver.
+This is a collection of various client libraries.
 
 INSTALLATION
 
 To install this module type the following:
 
-   perl Makefile.PL
-   make
-   make test
-   make install
+   perl Build.PL
+   perl Build
+   perl Build test
+   perl Build install
+
+
 
 DEPENDENCIES
 

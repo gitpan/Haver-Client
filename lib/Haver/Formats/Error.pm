@@ -1,4 +1,4 @@
-# Haver::Protocol::Errors
+# Haver::Formats::Error
 # Exports hash of errors and contains usefulinformation in POD form.
 # 
 # Copyright (C) 2004 Dylan William Hardison
@@ -108,6 +108,23 @@ our %Errors = (
 		'Server says you are not allowed to access the #1 command',
 		['command'],
 	],
+	TAG_INVALID => [
+		'tag invalid',
+		'#1 is an invalid tag',
+		['tag'],
+	],
+	CID_INVALID => [
+		'invalid cid',
+		'#1 is not a valid CID, it contains illegal characters.',
+		['cid'],
+	],
+	NS_NOT_FOUND => [
+		'namespace not found',
+		'The namespace #1 was not found',
+		['namespace'],
+	],
+
+
 );
 
 sub new {
@@ -146,19 +163,19 @@ __END__
 
 =head1 NAME
 
-Haver::Protocol::Errors - Error routines and data.
+Haver::Formats::Error - Error routines and data.
 
 =head1 SYNOPSIS
 
-   use Haver::Protocol::Errors qw(%Errors);
+   use Haver::Formats::Error qw(%Errors);
    my ($short_desc, $long_desc) = @{ $Errors{ UID_NOT_FOUND } };
 
    # or
-   $short_desc = Haver::Protocol::Errors->get_short_desc('UCMD');
-   $long_desc  = Haver::Protocol::Errors->get_long_desc('UCMD');
+   $short_desc = Haver::Formats::Error->get_short_desc('UCMD');
+   $long_desc  = Haver::Formats::Error->get_long_desc('UCMD');
 
    # Formatting:
-   $s = Haver::Protocol::Errors->format($Errors{$err}[1], $arg1);
+   $s = Haver::Formats::Error->format($Errors{$err}[1], $arg1);
  
 =head1 DESCRIPTION
 
@@ -169,12 +186,12 @@ human-readable strings.
 
 =over 1
 
-=item my $e = new Haver::Protocol::Errors
+=item my $e = new Haver::Formats::Error
 
 This doesn't actually make a new object. it just
-returns "Haver::Protocol::Errors". This is because
+returns "Haver::Formats::Error". This is because
 this module only provides class methods. But I'm lazy and want
-to write $e here instead of Haver::Protocol::Errors.
+to write $e here instead of Haver::Formats::Error.
 
 =item $s = $e->short_desc($err)
 

@@ -7,9 +7,8 @@ my $build = Module::Build->new(
 	dist_author        => 'Bryan Donlan <bdonlan@bd-home-comp.no-ip.org>',
 	license => 'gpl',
 	requires => {
-		'perl'           => '5.6.1',
-		POE              => 0.26,
-		Haver            => 0.05,
+		'perl'           => '5.8.0',
+		Haver            => 0.06,
 		'Digest::SHA1'   => 2.01,
 		'Data::Dumper'   => 2.121,
 
