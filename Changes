@@ -1,0 +1,6 @@
+Revision history for Perl extension Haver::Client.
+
+0.01  Sun Feb 15 22:11:08 2004
+	- original version; created by h2xs 1.23 with options
+		-XA --skip-autoloader -n Haver::Client
+

@@ -1,0 +1,8 @@
+bin/haver-tk.pl
+Changes
+lib/Haver/Client.pm
+MANIFEST			This list of files
+MANIFEST.SKIP
+README
+t/test-1.pl
+META.yml                                 Module meta-data (added by MakeMaker)
