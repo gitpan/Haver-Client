@@ -1,6 +1,39 @@
-Revision history for Perl extension Haver::Client.
+2004-02-16  bdonlan <bdonlan@bd-home-comp.no-ip.org>
 
-0.01  Sun Feb 15 22:11:08 2004
-	- original version; created by h2xs 1.23 with options
-		-XA --skip-autoloader -n Haver::Client
+	* bin/haver-tk.pl: QUITs now remove the user from the userlist
+
+2004-02-16  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk.pl: QUIT support
+
+2004-02-16  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk.pl: Made the client's output more JRC-like.
+
+2004-02-16  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk.pl: Added support for ACT and PACT (/me, /act)
+
+2004-02-16  dylanwh <dylanwh@tampabay.rr.com>
+
+	* .cvsignore: Added .cvsignore files.
+
+2004-02-15  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* MANIFEST, MANIFEST.SKIP: Add MANIFEST.bak and META.yml to
+	MANIFEST.SKIP
+
+2004-02-15  dylanwh <dylanwh@tampabay.rr.com>
+
+	* MANIFEST, MANIFEST.SKIP, MANIFEST.skip: Fixed manifest files.
+
+2004-02-15  dylanwh <dylanwh@tampabay.rr.com>
+
+	* Makefile.PL, bin/haver-tk.pl: We're re-organizing the directory
+	structure, so it is more modular.
+
+2004-02-15  dylanwh <dylanwh@tampabay.rr.com>
+
+	* MANIFEST, MANIFEST.skip, Makefile.PL, README,
+	lib/Haver/Client.pm, t/test-1.pl: Commited client stuff.
 

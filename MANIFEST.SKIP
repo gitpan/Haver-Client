@@ -1,3 +1,6 @@
 Makefile
 Makefile.old
 CVS
+MANIFEST.bak
+META.yml
+.cvsignore

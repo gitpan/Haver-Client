@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Header: /cvsroot/haver/haver/client/bin/haver-tk.pl,v 1.1 2004/02/16 03:52:52 dylanwh Exp $
+# $Header: /cvsroot/haver/haver/client/bin/haver-tk.pl,v 1.5 2004/02/17 02:23:21 bdonlan Exp $
 
 # haver-tk.pl, Perl/Tk client for Haver-compatible chat servers.
 # Copyright (C) 2003 Bryan Donlan
@@ -28,7 +28,7 @@ use constant {
 };
 
 BEGIN {
-    my $v = '$Revision: 1.1 $';
+    my $v = '$Revision: 1.5 $';
     $v =~ s/^[^0-9.]+//;
     $v =~ s/[^0-9.]+$//;
     $v = "haver-tk.pl/CVS:$v";
@@ -219,7 +219,7 @@ my %events = (
 	      },
 	      PMSG => sub {
 		  my ($who, $what) = @_[ARG0, ARG1];
-		  tbox_print "[From $who] $what";
+		  tbox_print "=> $who: $what";
 	      },
 	      ACCEPT => sub {
 		  my ($heap, @args) = @_[HEAP, ARG0..$#_];
@@ -256,7 +256,9 @@ my %events = (
 	      },
 	      USERS => sub {
 		  my ($heap, $channel, @args) = @_[HEAP, ARG0..$#_];
-		  tbox_print "[Users for $channel]", map { " - $_" } @args;
+		  my $count = @args;
+		  tbox_print "[$count users in room $channel]";
+		  tbox_print join(" - ", @args);
 		  if ($curchannel eq $channel) {
 		      %users = ();
 		      $users{$_} = 1 for (@args);
@@ -280,11 +282,29 @@ my %events = (
 		      $heap->{net}->put( ['CANT', $args[0]] );
 		  }
 	      },
+	      QUIT => sub {
+		  my ($heap, $who, $why) = @_[HEAP,ARG0,ARG1];
+		  tbox_print "[$who quits: $why]";
+		  delete $users{$who};
+		  update_ulist;
+	      },
 	      CLOSE => sub {
 		  my ($heap, @args) = @_[HEAP, ARG0..$#_];
-		  tbox_print "Server closing connection: $args[0]";
+		  tbox_print "Server closing connection: $args[0]" unless $heap->{closing};
 		  $heap->{silence_dc_error} = 1;
-	      }
+	      },
+	      ACT => sub {
+		  my @args = @_[ARG0..$#_];
+		  tbox_print "$args[1] $args[2]";
+	      },
+	      PMSG => sub {
+		  my ($who, $what) = @_[ARG0, ARG1];
+		  tbox_print "=> $who: $what";
+	      },
+	      PACT => sub {
+		  my ($who, $what) = @_[ARG0, ARG1];
+		  tbox_print "=> $who $what";
+	      } 
 	      );
 sub net_in {
     my ( $heap, $arg ) = @_[ HEAP, ARG0 ];
@@ -299,16 +319,26 @@ sub net_in {
 }
 
 sub net_err {
-    my ( $heap, $session, $operation, $errnum, $errstr, $wheel_id ) =
-      @_[ HEAP, SESSION, ARG0 .. ARG3 ];
+    my ( $kernel, $heap, $session, $operation, $errnum, $errstr, $wheel_id ) =
+      @_[ KERNEL, HEAP, SESSION, ARG0 .. ARG3 ];
     unless($heap->{silence_dc_error}){
 	tbox_print "Connection error: $errstr";
     }
     tbox_print "Disconnected.";
+    $kernel->delay('force_close');
     %users = ();
     %{$heap} = ();
     update_ulist;
     &setup_connect_win($session);
+}
+
+sub force_close {
+    my $heap = $_[HEAP];
+    tbox_print "Disconnected.";
+    %{$heap} = ();
+    %users = ();
+    update_ulist;
+    &setup_connect_win($_[SESSION]);   
 }
 
 my %commands = (
@@ -318,12 +348,11 @@ my %commands = (
 						  ($args) : ($curchannel))] );
 		},
 		quit => sub {
-		    my $heap = $_[HEAP];
-		    tbox_print "Disconnecting.";
-		    %{$heap} = ();
-		    %users = ();
-		    update_ulist;
-		    &setup_connect_win($_[SESSION]);
+		    my ($kernel, $heap) = @_[KERNEL,HEAP];
+		    tbox_print "Disconnecting...";
+		    $kernel->delay(force_close => 5);
+		    $heap->{net}->put( ["QUIT"] );
+		    $heap->{closing} = 1;
 		},
 		msg => sub {
 		    my ($heap, $args) = @_[HEAP,ARG0];
@@ -343,7 +372,31 @@ my %commands = (
 		    my ($who, $msg) = ($1, $2);
 		    $who =~ s/^[\'\"](.+)[\'\"]$/$1/;
 		    $heap->{net}->put( [ "PMSG", $who, $msg ] );
-		    tbox_print "[To $who] $msg";
+		    tbox_print "[To $who] $heap->{nick}: $msg";
+		},
+		me => sub {
+		    my ($heap, $args) = @_[HEAP,ARG0];
+		    $heap->{net}->put( [ "ACT", $curchannel, $args] );
+		},
+		act => sub {
+		    my ($heap, $args) = @_[HEAP,ARG0];
+		    unless($args =~ m!
+			   ( 
+			     # Quoted nicks, e.g:
+			     # "bob the voting fish"
+			     (?: [\"\'] [^\"\']+ [\"\'] ) |
+			     \w+
+			     )
+			   \s+
+			   (.+)
+			   $ !x){
+			tbox_print "Syntax error. msg";
+			return;
+		    }
+		    my ($who, $msg) = ($1, $2);
+		    $who =~ s/^[\'\"](.+)[\'\"]$/$1/;
+		    $heap->{net}->put( [ "PACT", $who, $msg ] );
+		    tbox_print "[To $who] $heap->{nick} $msg";
 		}
 		);
 
@@ -352,6 +405,7 @@ sub input {
     my $t = $entry->get;
     $entry->delete( 0, 'end' );
     $t =~ s/\t/' 'x8/ge;
+    return if defined $heap->{closing};
     if ( !defined $heap->{sock} ) {
 #        begin_connect $heap, $host, $port, $t;
 	tbox_print "Not connected.";
@@ -370,7 +424,7 @@ sub input {
 	return;
     }
     $t =~ s!^/ !!;
-    $heap->{net}->put( [ "MSG", 'lobby', $t ] );
+    $heap->{net}->put( [ "MSG", $curchannel, $t ] );
 }
 
 sub connect_win {
@@ -380,7 +434,7 @@ sub connect_win {
 POE::Session->create(
     package_states => [ main =>
         [qw(net_in net_err on_fail on_connect _start input begin_connect
-	    connect_win
+	    connect_win force_close
 	    )] ] );
 
 POE::Kernel->run();
