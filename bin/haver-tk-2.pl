@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Header: /cvsroot/haver/haver/client/bin/haver-tk-2.pl,v 1.7 2004/02/22 03:47:05 bdonlan Exp $
+# $Header: /cvsroot/haver/haver/client/bin/haver-tk-2.pl,v 1.20 2004/03/06 01:42:30 dylanwh Exp $
 
 # haver-tk.pl, Perl/Tk client for Haver-compatible chat servers.
 # Copyright (C) 2003 Bryan Donlan
@@ -21,20 +21,18 @@
 use strict;
 use warnings;
 use Carp;
-use Data::Dumper;
-
-my $host = 'hardison.net';
-my $port = 7070;
-my $nick = $ENV{USER} || '';
-my $pass = '';
-my $curchannel = "lobby";
-
+BEGIN { $::DEBUG = 1 }
 use Tk;
 use POE qw(
-  Wheel::SocketFactory
-  Wheel::ReadWrite Driver::SysRW);
+	Wheel::SocketFactory
+	Wheel::ReadWrite Driver::SysRW
+);
+
+use Haver::Preprocessor;
 use Haver::Protocol::Filter;
 use Haver::Client;
+use Haver::Client::UserList;
+use Haver::Config;
 
 eval { require POE::Wheel::SSLSocketFactory; };
 my $enable_ssl = !$@;
@@ -42,31 +40,58 @@ my $enable_ssl = !$@;
 # XXX: SSLSocketFactory client connections don't work yet.
 $enable_ssl = 0;
 
+
+our $Package = __PACKAGE__;
+
+my $pass = '';
+my $config = ((defined $ENV{HOME} && -d $ENV{HOME} && -w _) ? 
+	new Haver::Config (file => "$ENV{HOME}/.haver-tk") :
+	{});
+my $users = new Haver::Client::UserList (
+	on_add => \&ulist_add,
+	on_remove => \&ulist_remove,
+);
+	  
+	  
+my %defaultpref = (
+	UID => $ENV{USER} || '',
+	Channel => 'lobby',
+	HistFile => "$ENV{HOME}/.haver-tk.history",
+	HistSize => 50,
+	Host => 'hardison.net',
+	Port => 7070,
+);
+
+foreach my $key (keys %defaultpref) {
+    $config->{$key} = $defaultpref{$key} unless exists $config->{$key};
+}
+
+my $curchannel;
+my $rawlog = 0;
 my $mw;
 my $frame;
 my $tbox;
 my $entry;
 my $aj;
 my $ulist;
-my @users;
-my %users;
 
-sub tbox_print {
+
+sub tbox_print (@) {
     foreach (@_) {
         $tbox->insert( 'end', $_ . "\n" );
     }
     $tbox->yview('end');
 }
 
-sub update_ulist {
-    my @users = sort keys %users;
-    $ulist->delete( 0, 'end' );
-    $ulist->insert( 0, @users );
-}
+#sub update_ulist {
+#    $ulist->delete( 0, 'end' );
+#    $ulist->insert( 0, sort @$users );
+#}
 
 sub _start {
     my ( $kernel, $session, $heap ) = @_[ KERNEL, SESSION, HEAP ];
 
+	
     Haver::Client->new('haver');
     $kernel->post('haver', 'register', 'all');
 
@@ -75,41 +100,59 @@ sub _start {
 
     $frame = $mw->Frame();
 
-    $tbox  = $frame->Scrolled( 'ROText', -scrollbars => 'one' );
-    $aj    = $frame->Adjuster( -widget => $tbox, -side => 'left' );
-    $ulist = $frame->Scrolled( 'Listbox', -scrollbars => 'one' );
+    $tbox  = $frame->Scrolled( 'ROText',  -scrollbars => 'one', -background => 'white' );
+    $ulist = $frame->Scrolled( 'Listbox', -scrollbars => 'one', -background => 'white' );
+    $aj    = $frame->Adjuster(-widget => $tbox, -side => 'left' );
 
-    $tbox->pack( -side  => 'left', -fill => 'both', -expand => 1 );
-    $ulist->pack( -side => 'left', -fill => 'both', -expand => 1 );
-
+    $tbox->pack(  -side => 'left', -fill   => 'both', -expand => 1 );
+    $ulist->pack( -side => 'left', -fill   => 'both', -expand => 1 );
     $frame->pack( -fill => 'both', -expand => 1 );
-
-    $entry = $mw->Entry();
-    $entry->pack( -fill => 'x',    -expand => 0 );
-    $entry->bind( '<Return>', $session->postback('input') );
+	
+	eval {
+		require Tk::HistEntry;
+	};
+	if ($@) {
+		$entry = $mw->Entry(-background => 'white');
+	} else {	
+		$entry = $mw->SimpleHistEntry(
+			-limit => $config->{HistSize},
+			-background => 'white',
+		);
+		$entry->historyMergeFromFile($config->{HistFile});
+	}
+    $entry->bind( '<Return>', $session->postback('input'));
+	$entry->pack( -fill => 'x',    -expand => 0 );
 
     $kernel->delay('connect_win', 0.1);
 }
 
-my ($cwin, $hostbox, $portbox, $nickbox, $passbox, $use_ssl);
+sub _stop {
+
+	if ($entry->isa('Tk::HistEntry')) {
+		$entry->historySave($config->{HistFile});
+	}
+}
+
+my ($cwin, $hostbox, $portbox, $uidbox, $passbox, $channelbox, $use_ssl);
 
 sub setup_connect_win {
     defined $cwin and return;
     my $session = shift;
+    my $row = -1;
     $cwin = $mw->Toplevel();
     $cwin->title('Connect to server');
     
     $cwin->Label(-text => 'Host:', -justify => 'right')
-	->grid (-column => 0, -row => 0);
+	->grid (-column => 0, -row => ++$row);
     $hostbox = $cwin->Entry()
-	->grid (-column => 1, -row => 0);
-    $hostbox->insert(0, $host);
+	->grid (-column => 1, -row => $row);
+    $hostbox->insert(0, $config->{Host});
 
     $cwin->Label(-text => 'Port:', -justify => 'right')
-	->grid (-column => 0, -row => 1);
+	->grid (-column => 0, -row => ++$row);
     $portbox = $cwin->Entry()
-	->grid (-column => 1, -row => 1);
-    $portbox->insert(0, $port);
+	->grid (-column => 1, -row => $row);
+    $portbox->insert(0, $config->{Port});
 
 # XXX: This breaks Tk for me.
 #     $portbox->validateCommand
@@ -123,61 +166,64 @@ sub setup_connect_win {
 #     $portbox->validate('key');
 
     $cwin->Label(-text => 'UID:', -justify => 'right')
-	->grid (-column => 0, -row => 2);
-    $nickbox = $cwin->Entry()
-	->grid (-column => 1, -row => 2);
-    $nickbox->insert(0, $nick); 
+	->grid (-column => 0, -row => ++$row);
+    $uidbox = $cwin->Entry()
+	->grid (-column => 1, -row => $row);
+    $uidbox->insert(0, $config->{UID}); 
     
     $cwin->Label(-text => 'Password:', -justify => 'right')
-	->grid (-column => 0, -row => 3);
+	->grid (-column => 0, -row => ++$row);
     $passbox = $cwin->Entry(-show => '*')
-	->grid (-column => 1, -row => 3);
+	->grid (-column => 1, -row => $row);
     $passbox->insert(0, $pass);
+
+    $cwin->Label(-text => 'Channel:', -justify => 'right')
+	->grid (-column => 0, -row => ++$row);
+    $channelbox = $cwin->Entry
+	->grid (-column => 1, -row => $row);
+    $channelbox->insert(0, $config->{Channel}); 
 
     $use_ssl = 0;
     if($enable_ssl){
 	$cwin->Checkbutton(-text => 'Use SSL',
 			   -variable => \$use_ssl)
-	     ->grid(-column => 0, -row => 4, -columnspan => 2);
+	     ->grid(-column => 0, -row => ++$row, -columnspan => 2);
     }else{
 	$cwin->Label(-text => 'SSL unavailable.',
 		     -justify => 'center')
-	     ->grid(-column => 0, -row => 4, -columnspan => 2);
+	     ->grid(-column => 0, -row => ++$row, -columnspan => 2);
     }
     
     $cwin->Button(-text => 'Connect',
 		  -command => $session->postback('begin_connect'))
-	->grid(-column => 0, -row => 5);
+	->grid(-column => 0, -row => ++$row);
     
     $cwin->Button(-text => 'Quit',
 		  -command => sub { exit })
-	->grid(-column => 1, -row => 5);
+	->grid(-column => 1, -row => $row);
 
     $cwin->focus;
 }
 
 sub begin_connect {
     my ($kernel, $heap) = @_[KERNEL,HEAP];
-    $heap->{nick} = ($nick = $nickbox->get) or return;
+    ($config->{UID} = $uidbox->get) or return;
     $pass = $passbox->get;
+    $config->{Channel} = $curchannel = $channelbox->get;
     $kernel->post('haver', 'connect', 
-		  Host => ($host = $hostbox->get),
-		  Port => ($port = $portbox->get),
+		  UID => $config->{UID},
+		  Password => $pass,
+		  Host => ($config->{Host} = $hostbox->get),
+		  Port => ($config->{Port} = $portbox->get),
 		  );
-    tbox_print "Connecting to $host:$port...";
+    tbox_print "Connecting to $config->{Host}:$config->{Port}...";
     $cwin and $cwin->destroy;
-    ($cwin, $hostbox, $portbox, $nickbox) = ();
+    ($cwin, $hostbox, $portbox, $uidbox) = ();
 }
 
 sub haver_connected {
     my $heap = $_[HEAP];
     tbox_print("Connected.\n");
-}
-
-sub haver_login_request {
-    my ($kernel, $heap) = @_[KERNEL,HEAP];
-    tbox_print("Logging in as $nick...");
-    $kernel->post(haver => login => $nick, (($pass ne '') ? $pass : undef));
 }
 
 sub haver_login {
@@ -197,15 +243,19 @@ my %commands = (
 		},
 		quit => sub {
 		    my ($kernel, $heap) = @_[KERNEL,HEAP];
-		    tbox_print "Disconnecting...";
+		    tbox_print "[Disconnecting...]";
 		    $heap->{closing} = 1;
 		    $kernel->post(haver => 'disconnect');
+		},
+		make => sub {
+			my ($kernel, $heap, $args) = @_[KERNEL, HEAP, ARG0];
+			$kernel->post(haver => 'make' => $args);
 		},
 		msg => sub {
 		    my ($kernel, $heap, $args) = @_[KERNEL,HEAP,ARG0];
 		    unless($args =~ m!
 			   ( 
-			     # Quoted nicks, e.g:
+			     # Quoted uids, e.g:
 			     # "bob the voting fish"
 			     (?: [\"\'] [^\"\']+ [\"\'] ) |
 			     \w+
@@ -213,23 +263,23 @@ my %commands = (
 			   \s+
 			   (.+)
 			   $ !x){
-			tbox_print "Syntax error. msg";
+			tbox_print "[Syntax error. msg]";
 			return;
 		    }
 		    my ($who, $msg) = ($1, $2);
 		    $who =~ s/^[\'\"](.+)[\'\"]$/$1/;
 		    $kernel->post(haver => pmsg => $who, $msg);
-		    tbox_print "[To $who] $heap->{nick}: $msg";
+		    tbox_print "[To $who] $heap->{uid}: $msg";
 		},
 		me => sub {
 		    my ($kernel, $heap, $args) = @_[KERNEL,HEAP,ARG0];
 		    $kernel->post(haver => act => $curchannel, $args);
 		},
 		act => sub {
-		    my ($kernel,$heap, $args) = @_[KERNEL,HEAP,ARG0];
+		    my ($kernel, $heap, $args) = @_[KERNEL,HEAP,ARG0];
 		    unless($args =~ m!
 			   ( 
-			     # Quoted nicks, e.g:
+			     # Quoted uids, e.g:
 			     # "bob the voting fish"
 			     (?: [\"\'] [^\"\']+ [\"\'] ) |
 			     \w+
@@ -237,36 +287,111 @@ my %commands = (
 			   \s+
 			   (.+)
 			   $ !x){
-			tbox_print "Syntax error. msg";
+			tbox_print "[Syntax error.]";
 			return;
 		    }
 		    my ($who, $msg) = ($1, $2);
 		    $who =~ s/^[\'\"](.+)[\'\"]$/$1/;
 		    $kernel->post(haver => pact => $who, $msg);
-		    tbox_print "[To $who] $heap->{nick} $msg";
+		    tbox_print "[To $who] $heap->{uid} $msg";
+		},
+		join => sub {
+		    my ($kernel, $heap, $args) = @_[KERNEL,HEAP,ARG0];
+		    unless($args =~ m!^ \s*
+			   (
+			    # Quoted channel
+			    (?: [\"\'] [^\"\']+ [\"\'] ) |
+			    # Unquoted
+			    \w+
+			    )
+			   \s*
+			   # space fixes vim syntax highlighting...
+			   $ !x ) {
+			tbox_print
+			    q{Usage:},
+			    q{/join channel},
+			    q{/join "channel"},
+			    q{/join 'channel'};
+		    }
+		    my $newchannel = $1;
+		    $newchannel =~ s/^([\'\"]?)(.+)\1$/$2/;
+		    tbox_print "[Trying to join $newchannel...]";
+		    $kernel->post(haver => join => $newchannel);
+		},
+		list => sub {
+		    my ($kernel, $heap, $args) = @_[KERNEL,HEAP,ARG0];
+		    $kernel->post(haver => 'chans');
+		},
+		raw => sub {
+		    my ($kernel, $arg) = @_[KERNEL,ARG0];
+		    chomp $arg;
+		    my @args = $arg =~ m!
+			(
+			 # foo
+			 \w+
+			 |
+			 # 'foo bar'
+			 \'[^\']*(?:\'|$ )
+			 |
+			 # "He said, \"c:\\foo\""
+			 \"(?:
+			    [^\"\\]* |
+			    \\.
+			    )*
+			 (?:\"|$ )
+			 )
+			!gx;
+		    return unless(@args);
+		    for(@args) {
+			m/^[^\'\"]/ && next;
+			s/^\'([^\']*)\'$/$1/ && next;
+			# Same as above detection, but with capturing
+			s/\"((?:
+			      [^\"\\]* |
+			      \\.
+			      )*)
+			    (?:\"|$ )
+			    /$1/x;
+			s/\\(.)/$1/g;
+		    }
+		    $kernel->post('haver', 'send_raw', @args);
+		},
+		rawlog => sub {
+		    my ($kernel, $arg) = @_[KERNEL,ARG0];
+		    if($arg =~ m! ^ \s* (?:on|yes|1) \s* $!ix) {
+			$rawlog = 1;
+		    }elsif($arg =~ m! ^ \s* (?:off|no|0) \s* $!ix) {
+			$rawlog = 0;
+		    }else{
+			tbox_print "[Usage: /rawlog on|yes|1|off|no|0]";
+		    }
 		}
-		);
+);
 
 sub input {
     my ( $kernel, $heap ) = @_[ KERNEL, HEAP ];
     my $t = $entry->get;
+	if ($entry->can('historyAdd')) {
+		$entry->historyAdd($t);
+	}
     $entry->delete( 0, 'end' );
-    $t =~ s/\t/' 'x8/ge;
+	# this is not needed anymore.
+	#$t =~ s/\t/' 'x8/ge;
     return if defined $heap->{closing};
     if ( !defined $heap->{ready} ) {
-	tbox_print "Not connected.";
+	tbox_print "[Not connected.]";
         return;
     }
-    if ( $t =~ m!^/ (\w+) (?:\s+ (.+))? $!x) {
+    if ( $t =~ m!^/ (\w+) (?:\s+ (.+))? $ !x) {
 	if(exists $commands{lc $1}) {
 	    $commands{lc $1}(@_[0..ARG0-1], $2);
 	} else {
-	    tbox_print "Unknown command: $1";
+	    tbox_print "[Unknown command: $1]";
 	}
 	return;
     }
     if($t =~ m!^ / [^ ] !x) {
-	tbox_print "Syntax error. nm";
+	tbox_print "[Syntax error.]";
 	return;
     }
     $t =~ s!^/ !!;
@@ -278,65 +403,88 @@ sub haver_users {
     my $count = @who;
     tbox_print "[$count users in room $where]";
     tbox_print join(" - ", @who);
-    %users = map { $_ => 1 } @who if $where eq $curchannel;
-    update_ulist;
+
+	return if $where ne $curchannel;
+	$users->clear;
+	foreach my $uid (@who) {
+		$users->add($uid, 1);
+	}	
+	#update_ulist;
 }
 
 sub haver_public {
     my ($cid, $uid, $text) = @_[ARG0..ARG2];
-    tbox_print "$uid: $text" if $cid eq $curchannel;
+    if($cid eq $curchannel) {
+	tbox_print "$uid: $_" for (split /[\r\n]+/, $text);
+    }
 }
 
 sub haver_pubact {
     my ($cid, $uid, $text) = @_[ARG0..ARG2];
-    tbox_print "$uid $text" if $cid eq $curchannel;
+    if($cid eq $curchannel) {
+	tbox_print "$uid $_" for (split /[\r\n]+/, $text);
+    }
 }
 
 sub haver_private {
     my ($uid, $text) = @_[ARG0..ARG2];
-    tbox_print "=> $uid: $text";
+    tbox_print "=> $uid: $_" for (split /[\r\n]+/, $text);
 }
 
 sub haver_privact {
     my ($uid, $text) = @_[ARG0..ARG2];
-    tbox_print "=> $uid $text";
+    tbox_print "=> $uid $_" for (split /[\r\n]+/, $text);
 }
 
 sub haver_joined {
     my ($kernel, $channel) = @_[KERNEL,ARG0];
+    if($channel ne $curchannel) {
+	tbox_print "[Leaving $curchannel]";
+	$kernel->post(haver => part => $curchannel);
+    }
     tbox_print "[Joined $channel]";
+    $curchannel = $channel;
     $kernel->post(haver => users => $channel);
 }
 
 sub haver_join {
     my ($kernel, $cid, $uid) = @_[KERNEL,ARG0,ARG1];
     tbox_print "[$uid has entered $cid]";
-    $users{$uid} = 1 if $cid eq $curchannel;
-    update_ulist
+    if ($cid eq $curchannel) {
+		$users->add($uid, 1);
+		#update_ulist;
+	}
 }
 
 sub haver_part {
     my ($kernel, $cid, $uid) = @_[KERNEL,ARG0,ARG1];
     tbox_print "[$uid has left $cid]";
-    delete $users{$uid} if $cid eq $curchannel;
-    update_ulist
+    if ($cid eq $curchannel) {
+		$users->remove($uid);
+	}
+	#update_ulist
+}
+
+sub haver_parted {
+    my ($kernel, $channel) = @_[KERNEL,ARG0];
+    tbox_print "[Parted $channel]";
 }
 
 sub haver_quit {
     my ($kernel, $uid, $why) = @_[KERNEL,ARG0,ARG1];
     tbox_print "[$uid has quit: $why]";
-    delete $users{$uid};
-    update_ulist;
+	$users->remove($uid);
+	#update_ulist;
 }
 
 sub haver_disconnected {
     my ($kernel, $heap, $enum, $etxt) = @_[KERNEL,HEAP,ARG0,ARG1];
-    if($enum == 0) {
-	tbox_print "[Server closes connection. Disconnected.]";
-    }elsif($enum == -1) {
-	tbox_print "[Disconnected]";
-    }else {
-	tbox_print "[Connection error: $etxt ($enum)";
+    if ($enum == 0) {
+		tbox_print "[Server closes connection. Disconnected.]";
+    } elsif($enum == -1) {
+		tbox_print "[Disconnected]";
+    } else {
+		tbox_print "[Connection error: $etxt ($enum)";
     }
     delete $heap->{ready};
     delete $heap->{closing};
@@ -356,11 +504,37 @@ sub haver_connect_fail {
 }
 
 sub haver_login_fail {
-    my ($kernel, $heap, $etyp, $estr) = @_[KERNEL,HEAP,ARG0,ARG1];
+    my ($kernel, $heap, $estr) = @_[KERNEL,HEAP,ARG2];
     tbox_print "Login failure: $estr";
 # XXX: Redisplay login dialog
     $kernel->post(haver => 'disconnect');
-    &setup_connect_win($_[SESSION]);
+    setup_connect_win($_[SESSION]);
+}
+
+sub haver_chans {
+    my ($kernel, $heap, @chans) = @_[KERNEL,HEAP,ARG0..$#_];
+    tbox_print "[Channel list:]";
+    tbox_print join " - ", @chans;
+}
+
+sub haver_warn {
+    my ($kernel, $err, $eshort, $elong) = @_[KERNEL,ARG0..ARG2];
+    tbox_print "[Warning from server: $elong]";
+}
+
+sub haver_die {
+    my ($kernel, $err, $eshort, $elong) = @_[KERNEL,ARG0..ARG2];
+    tbox_print "[Fatal error from server: $elong]";
+}
+
+sub haver_raw_in {
+    my ($kernel, @message) = @_[KERNEL,ARG0..$#_];
+    tbox_print "S: ".join "\t", @message if $rawlog;
+}
+
+sub haver_raw_out {
+    my ($kernel, @message) = @_[KERNEL,ARG0..$#_];
+    tbox_print "C: ".join "\t", @message if $rawlog;
 }
 
 sub connect_win {
@@ -370,14 +544,34 @@ sub connect_win {
 sub _default {
     my ( $kernel, $state, $event, $args, $heap ) = @_[ KERNEL, STATE, ARG0, ARG1, HEAP ];
     $args ||= [];    # Prevents uninitialized-value warnings.
-    print STDERR "default: $state = $event. Args:\n".Dumper $args;
+    DEBUG: "default: $state = $event. Args:\n";
+	DUMP: $args;
     return 0;
 }
 
+sub ulist_add {
+	my ($list, $uid) = @_;
+	$ulist->delete('0', 'end');
+	$ulist->insert('end', sort @$list);
+}
+
+sub ulist_remove {
+	my ($list, $uid) = @_;
+	$ulist->delete('0', 'end');
+	$ulist->insert('end', sort @$list);
+}
+
 POE::Session->create(
-    package_states => [ main =>
-        [qw(_start input begin_connect
-	    connect_win haver_connected haver_login _default haver_users
+    package_states => [ $Package =>
+        [qw(_start
+	    _stop
+	    _default
+	    input
+	    begin_connect
+	    connect_win
+	    haver_connected
+	    haver_login
+	    haver_users
 	    haver_public
 	    haver_pubact
 	    haver_private
@@ -385,12 +579,17 @@ POE::Session->create(
 	    haver_joined
 	    haver_join
 	    haver_part
+	    haver_parted
 	    haver_quit
+	    haver_chans
 	    haver_disconnected
 	    haver_close
 	    haver_login_fail
-	    haver_login_request
 	    haver_connect_fail
+	    haver_warn
+	    haver_die
+	    haver_raw_in
+	    haver_raw_out
 	    )] ] );
 
 POE::Kernel->run();

@@ -1,12 +1,12 @@
 --- #YAML:1.0
 name: haver-client
-version: 0.043
+version: 0.05
 license: gpl
 distribution_type: module
 requires:
   Data::Dumper: 2.121
   Digest::SHA1: 2.01
-  Haver: 0.043
+  Haver: 0.05
   POE: 0.26
   perl: 5.6.1
 recommends: {}
@@ -15,5 +15,14 @@ conflicts: {}
 provides:
   Haver::Client:
     file: lib/Haver/Client.pm
-    version: 0.043
+    version: 0.05
+  Haver::Client::Commands:
+    file: lib/Haver/Client/Commands.pm
+    version: 0.01
+  Haver::Client::UserList:
+    file: lib/Haver/Client/UserList.pm
+    version: 0.01
+  Haver::Formats::Error:
+    file: lib/Haver/Formats/Error.pm
+    version: 0.02
 generated_by: Module::Build version 0.21

@@ -1,3 +1,132 @@
+2004-03-05  dylanwh <dylanwh@tampabay.rr.com>
+
+	* lib/Haver/Client/UserList.pm: Fixed user list bug.
+
+2004-03-05  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm,
+	lib/Haver/Client/UserList.pm: uses Preprocessor now.
+
+2004-03-05  dylanwh <dylanwh@tampabay.rr.com>
+
+	* lib/Haver/Client/UserList.pm: fixed small bug with ->add().
+
+2004-03-05  dylanwh <dylanwh@tampabay.rr.com>
+
+	* lib/Haver/Client.pm, lib/Haver/Formats/Error.pm: using
+	Haver::Formats::Error now.
+
+2004-03-05  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm,
+	lib/Haver/Client/Commands.pm, lib/Haver/Client/UserList.pm,
+	t/basic.t: Foo.
+
+2004-02-29  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk-2.pl: haver-tk-2.pl now has history in the entry
+	box, provided Tk::HistEntry is installed.
+
+2004-02-29  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: /raw fixes
+
+2004-02-29  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: /raw and /rawlog
+
+2004-02-29  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* lib/Haver/Client.pm: UTF-8, I think.
+
+2004-02-29  dylanwh <dylanwh@tampabay.rr.com>
+
+	* Build.PL: Various changes. Getting ready for 0.05.
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: Make haver_login_fail
+	report the formatted error
+
+2004-02-28  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk-2.pl: UIDs Are Not Nicks.
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: haver-tk-2 uses
+	Haver::Config now
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: 
+	client/bin/haver-tk-2.pl:    /list lists available channes    /join
+	switches channel    $ENV{HOME}/.haver-tk stores default host, port,
+	username, and channel client/lib/Haver/Client.pm:    Wrapper for C:
+	USERS and S: USERS
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl: multiline support in haver-tk-2, once
+	Haver::Procotol::Filter unescapes properly
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* lib/Haver/Client.pm: Haver::Client dosen't auto-break now
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* lib/Haver/Client.pm: Haver::Client auto-breaks multiline MSGs,
+	etc
+
+2004-02-28  dylanwh <dylanwh@tampabay.rr.com>
+
+	* bin/haver-tk-2.pl: Made it prettier.
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* lib/Haver/Client.pm: Haver::Client login_fail resets UID and PASS
+
+2004-02-28  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* bin/haver-tk-2.pl, lib/Haver/Client.pm: Haver::Client connect
+	event accepts Password now
+
+2004-02-28  dylanwh <dylanwh@tampabay.rr.com>
+
+	* Build.PL, bin/haver-tk-2.pl, lib/Haver/Client.pm: Foo.
+
+2004-02-27  dylanwh <dylanwh@tampabay.rr.com>
+
+	* .cvsignore: Added some stuff to cvs ignore.
+
+2004-02-22  dylanwh <dylanwh@tampabay.rr.com>
+
+	* .cvsignore, MANIFEST: Removed MANIFEST files from CVS.
+
+2004-02-22  dylanwh <dylanwh@tampabay.rr.com>
+
+	* COPYING: We're switching to Module::Build now.
+
+2004-02-22  dylanwh <dylanwh@tampabay.rr.com>
+
+	* Build.PL, MANIFEST, MANIFEST.SKIP, Makefile.PL, t/basic.t,
+	t/test-1.pl: We're switching to Module::Build.
+
+2004-02-22  dylanwh <dylanwh@tampabay.rr.com>
+
+	* MANIFEST, MANIFEST.SKIP, lib/Haver/Client.pm: Fixed some
+	MANIFEST.SKIP bugs.
+
+2004-02-22  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* MANIFEST, MANIFEST.SKIP: MANIFEST regeneration, added *.~* to
+	MANIFEST.SKIP
+
+2004-02-22  bdonlan <bdonlan@bd-home-comp.no-ip.org>
+
+	* Makefile.PL, README: Haver::Client works with POE 0.26
+
 2004-02-21  dylanwh <dylanwh@tampabay.rr.com>
 
 	* Makefile.PL, README: Getting ready to release 0.04 "Vinegar"!

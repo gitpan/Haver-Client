@@ -1,3 +1,20 @@
+# Haver::Client - POE Component for Haver clients.
+# 
+# Copyright (C) 2004 Bryan Donlan, Dylan William Hardison.
+# 
+# This module is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This module is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this module; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 package Haver::Client;
 
 use 5.008002;
@@ -6,13 +23,14 @@ use warnings;
 
 use POE qw(Wheel::ReadWrite
 	   Wheel::SocketFactory);
+use Haver::Preprocessor;
 use Haver::Protocol::Filter;
+use Haver::Formats::Error;
 use Carp;
 use Digest::SHA1 qw(sha1_base64);
-use Data::Dumper;
 require Exporter;
 
-our $VERSION = '0.043';
+our $VERSION = '0.05';
 
 ### SETUP
 
@@ -34,6 +52,7 @@ sub new ($$) {
 				   connectfail
 
 				   input
+				   send_raw
 				   send
 				   net_error
 
@@ -52,6 +71,8 @@ sub new ($$) {
 				   act
 				   pact
 				   users
+				   make
+				   chans
 
 				   event_WANT
 				   event_ACCEPT
@@ -68,6 +89,9 @@ sub new ($$) {
 				   event_USERS
 				   event_BYE
 				   event_QUIT
+				   event_CHANS
+				   event_WARN
+				   event_DIE
 
 				   _default
 
@@ -126,6 +150,7 @@ sub connect {
 	return;
     }
     $heap->{UID} = $args{UID};
+    $heap->{PASS} = $args{Password};
     $args{Port} ||= 7070;
     $heap->{connect_wheel} =
 	POE::Wheel::SocketFactory->new(
@@ -144,6 +169,7 @@ sub connected {
 	close $handle;
 	return;
     }
+    binmode $handle, ':utf8';
     $heap->{conn} =
 	POE::Wheel::ReadWrite->new(
 				   Handle => $handle,
@@ -177,7 +203,21 @@ sub input {
     print STDERR "S: ", join("\t", @$event), "\n";
     my $ename = shift @$event;
     $kernel->yield("event_$ename", @$event);
-    $kernel->yield('dispatch', 'raw', $ename, @$event);
+    $kernel->yield('dispatch', 'raw_in', $ename, @$event);
+}
+
+sub send_raw {
+    my ($kernel, $heap, @message) = @_[KERNEL,HEAP,ARG0..$#_];
+    return if ($heap->{want} && $heap->{want} eq "!impossible");
+    eval { $heap->{conn}->put(\@message); };
+    if($@) {
+	# Ack, lost connection unexpectedly!
+	# Hopefully we get net_error soon
+	$heap->{want} = "!impossible";
+	return;
+    }
+    print STDERR "C: ", join("\t", @message), "\n";
+    $kernel->yield('dispatch', 'raw_out', @message);
 }
 
 sub send {
@@ -191,8 +231,7 @@ sub send {
 	}
 	delete $heap->{want};
     }
-    print STDERR "C: ", join("\t", @message), "\n";
-    $heap->{conn}->put(\@message);
+    $kernel->yield('send_raw', @message);
     if(exists $heap->{messageq}) {
 	for (@{$heap->{messageq}}) {
 	    $kernel->yield(send => @$_);
@@ -247,8 +286,16 @@ sub event_ACCEPT {
 }
 
 sub event_REJECT {
-    my ($kernel, $heap, $etag, $estr) = @_[KERNEL,HEAP,ARG0,ARG1];
-    $kernel->yield(dispatch => login_fail => $etag, $estr);
+    my ($kernel, $heap, $uid, $err) = @_[KERNEL,HEAP,ARG0,ARG1];
+    my $e = new Haver::Formats::Error;
+    $kernel->yield(dispatch => login_fail =>
+		   $err,
+		   $e->get_short_desc($err),
+		   $e->format( $e->get_long_desc($err), $uid )
+		   );
+    delete $heap->{UID};
+    delete $heap->{PASS};
+    $heap->{want} = 'UID';
 }
 
 sub event_PING {
@@ -315,6 +362,31 @@ sub event_QUIT {
     $kernel->yield(dispatch => quit => $who, $why);
 }
 
+sub event_CHANS {
+    my ($kernel, $heap, @channels) = @_[KERNEL,HEAP,ARG0..$#_];
+    $kernel->yield(dispatch => chans => @channels);
+}
+
+sub event_WARN {
+    my ($kernel, $err, @args) = @_[KERNEL,ARG0..$#_];
+    my $e = new Haver::Formats::Error;
+    $kernel->yield(dispatch => 'warn' =>
+		   $err,
+		   $e->get_short_desc($err),
+		   $e->format( $e->get_long_desc($err), @args )
+		   );
+}
+
+sub event_DIE {
+    my ($kernel, $err, @args) = @_[KERNEL,ARG0..$#_];
+    my $e = new Haver::Formats::Error;
+    $kernel->yield(dispatch => 'die' =>
+		   $err,
+		   $e->get_short_desc($err),
+		   $e->format( $e->get_long_desc($err), @args )
+		   );
+}
+
 ### CLIENT EVENTS
 
 sub login {
@@ -352,6 +424,11 @@ sub part {
     $kernel->yield(send => 'PART', $where);
 }
 
+sub make {
+    my ($kernel, $heap, $cid) = @_[KERNEL,HEAP,ARG0];
+    $kernel->yield(send => 'MAKE', $cid);
+}
+
 sub msg {
     my ($kernel, $heap, $where, $message) = @_[KERNEL,HEAP,ARG0,ARG1];
     $kernel->yield(send => 'MSG', $where, $message);
@@ -375,6 +452,11 @@ sub pact {
 sub users {
     my ($kernel, $heap, $where) = @_[KERNEL,HEAP,ARG0];
     $kernel->yield(send => 'USERS', $where);
+}
+
+sub chans {
+    my $kernel = $_[KERNEL];
+    $kernel->yield(send => 'CHANS');
 }
 
 ### SHUTDOWN
@@ -411,7 +493,7 @@ sub flushed {
 
 sub cleanup {
     my ($kernel, $heap) = @_[KERNEL, HEAP];
-    delete $heap->{$_} for qw(conn flushed closing UID PASS);
+    delete $heap->{$_} for qw(conn flushed closing UID PASS want messageq);
     $kernel->delay('force_close');
     if($heap->{destroy_pending}) {
 	$kernel->yield('destroy');
@@ -446,7 +528,8 @@ sub _stop {
 sub _default {
     my ( $kernel, $state, $event, $args, $heap ) = @_[ KERNEL, STATE, ARG0, ARG1, HEAP ];
     $args ||= [];    # Prevents uninitialized-value warnings.
-    print STDERR "default: $state = $event. Args:\n".Dumper $args;
+	DEBUG: "default: $state = $event. Args:\n";
+	DUMP: $args;
     return 0;
 }
 
@@ -472,8 +555,8 @@ L<http://wiki.chani3.com/wiki/ProjectHaver/>
 
 =head1 AUTHOR
 
-Dylan William Hardison, E<lt>dylanwh@tampabay.rr.comE<gt> and
-Bryan Donlan, E<lt>bdonlan@bd-home-comp.no-ip.orgE<gt>
+Bryan Donlan, E<lt>bdonlan@bd-home-comp.no-ip.orgE<gt> and
+Dylan William Hardison, E<lt>dylanwh@tampabay.rr.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
