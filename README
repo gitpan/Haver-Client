@@ -33,7 +33,7 @@ To install this module type the following:
 DEPENDENCIES
 
 Haver        => 0.04
-POE          => 0.27
+POE          => 0.26
 Data::Dumper => 2.121
 
 

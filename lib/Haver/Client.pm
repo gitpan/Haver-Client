@@ -12,7 +12,7 @@ use Digest::SHA1 qw(sha1_base64);
 use Data::Dumper;
 require Exporter;
 
-our $VERSION = '0.04';
+our $VERSION = '0.043';
 
 ### SETUP
 

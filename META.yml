@@ -1,13 +1,19 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Haver-Client
-version:      0.04
-version_from: lib/Haver/Client.pm
-installdirs:  site
-requires:
-    Data::Dumper:                  2.121
-    Haver:                         0.04
-    POE:                           0.27
-
+--- #YAML:1.0
+name: haver-client
+version: 0.043
+license: gpl
 distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+requires:
+  Data::Dumper: 2.121
+  Digest::SHA1: 2.01
+  Haver: 0.043
+  POE: 0.26
+  perl: 5.6.1
+recommends: {}
+build_requires: {}
+conflicts: {}
+provides:
+  Haver::Client:
+    file: lib/Haver/Client.pm
+    version: 0.043
+generated_by: Module::Build version 0.21

@@ -1,9 +1,11 @@
-bin/haver-tk.pl
 bin/haver-tk-2.pl
+bin/haver-tk.pl
+Build.PL
 Changes
+COPYING
 lib/Haver/Client.pm
 MANIFEST			This list of files
 MANIFEST.SKIP
+META.yml
 README
-t/test-1.pl
-META.yml                                 Module meta-data (added by MakeMaker)
+t/basic.t

@@ -1,6 +1,8 @@
-Makefile
-Makefile.old
+\.old$
 CVS
-MANIFEST.bak
-META.yml
+\.bak$
 .cvsignore
+\.~
+blib
+_build
+^Build$
