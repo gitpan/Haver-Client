@@ -1,16 +1,25 @@
-Haver-Client version 0.02
+Haver-Client version 0.04 ("Vinegar")
 =========================
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+Haver's a new chat system similar to IRC,
+but hopefully it is both more simple and more
+flexible.
 
-A README file is required for CPAN modules since CPAN extracts the
-README file from a module distribution so that people browsing the
-archive can use it get an idea of the modules uses. It is usually a
-good idea to provide version information here so that people can
-decide whether fixes for the module are worth downloading.
+Haver will never replace IRC, rather it
+is intended for a different niche: Fairly
+small servers. Haver doesn't make any attempts
+at doing multi-server stuff.
+
+Why was haver written?
+Because IRC is really... disorganized.
+Having to user agents for keeping rooms registered
+is just plain icky, in my opinion.
+
+Also, writing the server, the clients,
+devising a protocol that is simple, is
+terribly fun stuff.
+
+This Bryan Donlan's perl client library for Haver.
 
 INSTALLATION
 
@@ -23,9 +32,10 @@ To install this module type the following:
 
 DEPENDENCIES
 
-This module requires these other modules and libraries:
+Haver        => 0.04
+POE          => 0.27
+Data::Dumper => 2.121
 
-  blah blah blah
 
 COPYRIGHT AND LICENCE
 

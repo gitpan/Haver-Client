@@ -1,4 +1,5 @@
 bin/haver-tk.pl
+bin/haver-tk-2.pl
 Changes
 lib/Haver/Client.pm
 MANIFEST			This list of files
