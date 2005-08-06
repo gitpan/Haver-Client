@@ -1,0 +1,15 @@
+Source: libhaver-client-perl
+Section: perl
+Priority: optional
+Build-Depends: debhelper (>= 4.0.2), libmodule-build-perl, libdigest-sha1-perl, libhaver-core-perl
+Build-Depends-Indep: perl (>= 5.8.0-7)
+Maintainer: Dylan Hardison <dylan@haverdev.org>
+Standards-Version: 3.6.1
+
+Package: libhaver-client-perl
+Architecture: all
+Depends: ${perl:Depends}, ${misc:Depends}, libdigest-sha1-perl, libhaver-core-perl
+Description:  POE component for haver clients.
+ FIXME
+ .
+ This description was automagically extracted from the module by dh-make-perl.

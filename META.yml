@@ -1,26 +1,21 @@
---- #YAML:1.0
-name: haver-client
-version: 0.06
+---
+name: Haver-Client
+version: 0.08
 author:
-  - Bryan Donlan <bdonlan@bd-home-comp.no-ip.org>
-abstract: Namespace for client stuff.
+  - Dylan Hardison <dylan@haverdev.org>
+  - Bryan Donlan <bdonlan@haverdev.org>
+abstract: POE component for haver clients.
 license: gpl
 requires:
   Data::Dumper: 2.121
   Digest::SHA1: 2.01
-  Haver: 0.06
+  Haver::Core: 0.08
   perl: 5.8.0
 provides:
   Haver::Client:
     file: lib/Haver/Client.pm
-    version: 0.06
-  Haver::Client::Commands:
-    file: lib/Haver/Client/Commands.pm
-    version: 0.01
-  Haver::Client::UserList:
-    file: lib/Haver/Client/UserList.pm
-    version: 0.01
-  Haver::Formats::Error:
-    file: lib/Haver/Formats/Error.pm
-    version: 0.02
-generated_by: Module::Build version 0.24
+    version: 0.08
+  Haver::Client::Failures:
+    file: lib/Haver/Client/Failures.pm
+    version: 0.08
+generated_by: Module::Build version 0.26

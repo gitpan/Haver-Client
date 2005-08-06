@@ -6,3 +6,5 @@ _build
 ^Build$
 ^\.#
 \.svn
+^debian/lib
+^debian/files
